@@ -1,0 +1,615 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>SAPIENS CLIMBING LAB</title>
+    <link href="https://fonts.googleapis.com/css2?family=Oswald:wght@400;700&family=Roboto:wght@300;400;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg-dark: #1a1a1a;
+            --rock-texture: #262626;
+            --chalk-white: #f0f0f0;
+            --hold-green: #00c853; /* Vert prise */
+            --hold-red: #d50000;   /* Rouge prise */
+            --hold-blue: #2962ff;  /* Bleu prise */
+            --hold-yellow: #ffd600;
+            --hold-purple: #aa00ff; /* Muscu */
+            --glass-bg: rgba(30, 30, 30, 0.85);
+            --glass-border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        * { box-sizing: border-box; margin: 0; padding: 0; touch-action: manipulation; }
+        
+        body {
+            background-color: var(--bg-dark);
+            background-image: url('https://images.unsplash.com/photo-1522163182402-834f871fd851?q=80&w=2003&auto=format&fit=crop');
+            background-size: cover;
+            background-position: center;
+            background-blend-mode: multiply;
+            color: var(--chalk-white);
+            font-family: 'Roboto', sans-serif;
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            overflow: hidden;
+        }
+
+        /* --- UTILS --- */
+        .hidden { display: none !important; }
+        .fade-in { animation: fadeIn 0.5s ease-in-out; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+        
+        .full-screen { 
+            width: 100%; height: 100%; 
+            position: absolute; top: 0; left: 0; 
+            z-index: 10; 
+            display: flex; flex-direction: column; align-items: center; justify-content: center;
+            background: transparent;
+        }
+
+        /* --- GLASS PANELS --- */
+        .glass-panel {
+            background: var(--glass-bg);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            border: var(--glass-border);
+            border-radius: 16px;
+            padding: 2rem;
+            box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.37);
+            width: 90%;
+            max-width: 400px;
+            text-align: center;
+            max-height: 90vh;
+            overflow-y: auto;
+        }
+
+        h1, h2, h3, .timer-display, .status-text { font-family: 'Oswald', sans-serif; text-transform: uppercase; }
+
+        /* --- FORMS --- */
+        input {
+            width: 100%; padding: 15px; margin-bottom: 15px;
+            background: rgba(0, 0, 0, 0.5);
+            border: 1px solid #444; border-radius: 8px;
+            color: white; font-size: 1.1rem; text-align: center; outline: none;
+            transition: border-color 0.3s;
+        }
+        input:focus { border-color: var(--hold-blue); }
+
+        /* --- BUTTONS --- */
+        button {
+            background: linear-gradient(145deg, #333, #222);
+            border: none;
+            color: white;
+            padding: 18px 30px;
+            font-size: 1.2rem;
+            font-family: 'Oswald', sans-serif;
+            font-weight: bold;
+            cursor: pointer;
+            margin: 10px 0;
+            text-transform: uppercase;
+            border-radius: 12px;
+            box-shadow: 5px 5px 10px #111, -5px -5px 10px #333;
+            transition: all 0.1s;
+            width: 100%;
+        }
+        button:active { transform: scale(0.96); box-shadow: inset 5px 5px 10px #111, inset -5px -5px 10px #333; }
+        
+        button.primary { background: var(--hold-green); color: #000; box-shadow: 0 4px 15px rgba(0, 200, 83, 0.4); }
+        button.secondary { background: var(--hold-blue); box-shadow: 0 4px 15px rgba(41, 98, 255, 0.4); }
+        button.muscu { background: var(--hold-purple); box-shadow: 0 4px 15px rgba(170, 0, 255, 0.4); }
+        button.danger { background: var(--hold-red); color: white; box-shadow: 0 4px 15px rgba(213, 0, 0, 0.4); }
+        button.outline { background: transparent; border: 2px solid #555; box-shadow: none; color: #aaa; }
+        button.small-btn { padding: 10px; font-size: 0.9rem; margin: 5px 0; width: auto; display: inline-block; }
+
+        /* --- DASHBOARD --- */
+        .user-badge { 
+            background: var(--hold-yellow); color: black; 
+            padding: 5px 15px; border-radius: 20px; 
+            font-size: 0.9rem; font-weight: bold; 
+            margin-bottom: 20px; display: inline-block;
+            box-shadow: 0 0 10px rgba(255, 214, 0, 0.5);
+        }
+
+        /* --- TIMER SCREEN --- */
+        .timer-container {
+            position: relative;
+            width: 280px; height: 280px;
+            display: flex; align-items: center; justify-content: center;
+            margin: 20px auto;
+            background: rgba(0,0,0,0.3);
+            border-radius: 50%;
+            border: 8px solid #333;
+            transition: border-color 0.3s;
+        }
+        .timer-display { font-size: 6rem; z-index: 2; position: relative; }
+        .status-text { font-size: 1.8rem; margin-bottom: 10px; letter-spacing: 2px; }
+        
+        .grip-card {
+            background: rgba(255,255,255,0.05);
+            border-radius: 12px; padding: 15px;
+            margin-bottom: 20px; border: 1px solid rgba(255,255,255,0.1);
+            width: 100%;
+        }
+        .grip-icon { font-size: 2.5rem; display: block; margin-bottom: 5px; }
+
+        /* Dynamic Colors */
+        .state-work .timer-container { border-color: var(--hold-green); box-shadow: 0 0 30px rgba(0, 200, 83, 0.2); }
+        .state-work .timer-display, .state-work .status-text { color: var(--hold-green); }
+        .state-rest .timer-container { border-color: var(--hold-red); box-shadow: 0 0 30px rgba(213, 0, 0, 0.2); }
+        .state-rest .timer-display, .state-rest .status-text { color: var(--hold-red); }
+
+        /* --- LISTS (Warmup & Muscu) --- */
+        .scroll-container { 
+            width: 100%; max-width: 600px; 
+            overflow-y: auto; padding-bottom: 100px;
+            display: flex; flex-direction: column; align-items: center;
+        }
+        
+        /* Accordion Style for Muscu */
+        .accordion { width: 95%; margin-bottom: 10px; }
+        .accordion-header {
+            background: rgba(50, 50, 50, 0.9);
+            padding: 15px; border-radius: 8px;
+            display: flex; justify-content: space-between; align-items: center;
+            cursor: pointer; border-left: 4px solid var(--hold-purple);
+            transition: background 0.2s;
+        }
+        .accordion-header:hover { background: rgba(70, 70, 70, 0.9); }
+        .accordion-title { font-family: 'Oswald'; font-size: 1.1rem; color: white; }
+        .accordion-icon { font-size: 1.2rem; transition: transform 0.3s; }
+        .accordion-content {
+            max-height: 0; overflow: hidden;
+            background: rgba(30, 30, 30, 0.5);
+            border-radius: 0 0 8px 8px;
+            transition: max-height 0.3s ease-out;
+            text-align: left;
+        }
+        .accordion-content.open { max-height: 1000px; border: 1px solid #444; border-top: none; }
+        .accordion-inner { padding: 15px; color: #ddd; line-height: 1.6; font-size: 0.95rem; }
+        .accordion-inner ul { margin-left: 20px; margin-bottom: 10px; }
+
+        /* Warmup Cards */
+        .step-card { 
+            background: rgba(30,30,30,0.95); border-radius: 10px; 
+            padding: 20px; margin-bottom: 15px; text-align: left; width: 90%;
+            border-left: 5px solid var(--hold-blue);
+        }
+
+        .nav-bar { 
+            position: fixed; bottom: 0; left: 0; width: 100%; 
+            background: rgba(0,0,0,0.95); padding: 15px; 
+            display: flex; justify-content: space-around;
+            backdrop-filter: blur(5px); border-top: 1px solid #333; z-index: 50;
+        }
+
+        .back-arrow { 
+            position: absolute; top: 20px; left: 20px; 
+            font-size: 1.5rem; cursor: pointer; color: #777; z-index: 100;
+            background: rgba(0,0,0,0.5); width: 40px; height: 40px;
+            border-radius: 50%; display: flex; align-items: center; justify-content: center;
+        }
+        .back-arrow:hover { color: white; background: rgba(255,255,255,0.1); }
+
+    </style>
+</head>
+<body>
+
+    <div id="login-screen" class="full-screen fade-in">
+        <div class="glass-panel">
+            <h1 style="margin-bottom: 10px; color: var(--hold-yellow);">SAPIENS<br>CLIMBING</h1>
+            <p style="margin-bottom: 25px; color:#aaa; font-size: 0.9rem;">PRIVATE ACCESS ONLY</p>
+            
+            <input type="text" id="username-input" placeholder="Identifiant">
+            <input type="password" id="password-input" placeholder="Mot de passe">
+            
+            <button class="primary" onclick="handleLogin()">CONNEXION</button>
+            <div id="login-error" style="color: var(--hold-red); margin-top: 15px; height: 20px; font-size: 0.9rem;"></div>
+        </div>
+    </div>
+
+    <div id="dashboard" class="full-screen hidden fade-in">
+        <div class="glass-panel">
+            <div class="user-badge" id="user-welcome">USER</div>
+            <h2 style="margin-bottom: 30px;">MENU PRINCIPAL</h2>
+            
+            <button class="primary" onclick="startProtocol()">⚡ CIRCUIT NO HANG</button>
+            <button class="secondary" onclick="startWarmup()">🔥 ÉCHAUFFEMENT</button>
+            <button class="muscu" onclick="showScreen('muscu-menu-screen')">🏋️ MUSCU & FORCE</button>
+            <button class="outline" onclick="logout()" style="margin-top: 20px; font-size: 0.9rem; padding: 10px;">Déconnexion</button>
+        </div>
+    </div>
+
+    <div id="muscu-menu-screen" class="full-screen hidden fade-in">
+        <div class="back-arrow" onclick="goHome()">✕</div>
+        <div class="glass-panel">
+            <h2 style="margin-bottom: 30px; color: var(--hold-purple);">CHOISIS TON ARME</h2>
+            <button class="muscu" onclick="renderMuscu('gym'); showScreen('muscu-content-screen')">🏢 SALLE / MATOS</button>
+            <button class="muscu" onclick="renderMuscu('home'); showScreen('muscu-content-screen')" style="filter: hue-rotate(45deg);">🏠 MAISON (JAMBES)</button>
+        </div>
+    </div>
+
+    <div id="protocol-screen" class="full-screen hidden fade-in">
+        <div class="back-arrow" onclick="goHome()">✕</div>
+        
+        <div class="glass-panel" style="padding: 1rem; max-width: 500px;">
+            <div id="grip-info-box" class="grip-card">
+                <span class="grip-icon" id="grip-icon">🖐️</span>
+                <span class="grip-label" id="grip-name">4 DOIGTS</span>
+            </div>
+
+            <div id="timer-state-wrapper" class="state-rest">
+                <div id="timer-status" class="status-text">PRÊT ?</div>
+                <div class="timer-container">
+                    <div id="timer-val" class="timer-display">00</div>
+                </div>
+            </div>
+
+            <div style="display: flex; justify-content: space-between; margin-top: 10px; color: #888; font-family: 'Oswald';">
+                <span>REP: <b id="rep-count" style="color:white">1</b>/6</span>
+                <span>SET: <b id="set-count" style="color:white">1</b>/4</span>
+            </div>
+        </div>
+
+        <div style="position: absolute; bottom: 30px; width: 100%; display: flex; justify-content: center; gap: 10px;">
+            <button id="action-btn" class="primary" onclick="toggleTimer()" style="width: 140px;">GO</button>
+            <button class="danger" onclick="resetProtocol()" style="width: 80px;">↺</button>
+        </div>
+    </div>
+
+    <div id="warmup-screen" class="full-screen hidden fade-in" style="justify-content: flex-start;">
+        <div class="back-arrow" onclick="goHome()">✕</div>
+        <h2 style="margin: 20px 0 20px 0; color: var(--hold-blue); padding-top:40px;">ÉCHAUFFEMENT</h2>
+        
+        <div id="warmup-container" class="scroll-container">
+            </div>
+
+        <div class="nav-bar">
+            <button onclick="prevWarmup()" id="prev-warm-btn" class="outline" style="width: 45%;">PRÉC.</button>
+            <button onclick="nextWarmup()" id="next-warm-btn" class="secondary" style="width: 45%;">SUIVANT</button>
+        </div>
+    </div>
+
+    <div id="muscu-content-screen" class="full-screen hidden fade-in" style="justify-content: flex-start;">
+        <div class="back-arrow" onclick="showScreen('muscu-menu-screen')">✕</div>
+        <h2 id="muscu-title" style="margin: 20px 0 20px 0; color: var(--hold-purple); padding-top:40px;">PROGRAMME</h2>
+        <div id="muscu-container" class="scroll-container">
+            </div>
+    </div>
+
+    <script>
+        // --- CONFIG & DATA ---
+        const USERS = { "ziyad": "ZitZitoune", "matéo": "ChebMalice", "mateo": "ChebMalice" };
+
+        const GRIPS = [
+            { name: "4 DOIGTS (Ouvert/Semi)", icon: "🖐️" },
+            { name: "3 DOIGTS (Sans l'auriculaire)", icon: "👌" },
+            { name: "BI-DOIGTS (Index + Majeur)", icon: "✌️" },
+            { name: "BI-DOIGTS (Majeur + Annulaire)", icon: "🖕💍" }
+        ];
+
+        const WARMUP_STEPS = [
+            { title: "1. Réveil Articulaire", text: "• Ouvertures mains (doigts)\n• Rotations coudes, poignets, cou, bassin..." },
+            { title: "2. No Hang (Pieds au sol)", text: "• Poutre : 10 sec suspension (Pieds au sol, cool).\n• Repos : 20 sec (Bouge tes articulations).\n\n🔁 Répète 3 fois en augmentant l'intensité." },
+            { title: "3. Activation Haut du Corps", text: "• Suspension barre traction (15-45 sec).\n• Active bien les épaules." },
+            { title: "4. Montée (20mm)", text: "• No Hang 10 sec sur 20mm.\n• Active la coiffe des rotateurs (élastique)." },
+            { title: "5. Tractions & No Hang", text: "• No Hang 10 sec sur 20mm.\n• 4/5 Tractions Supination." },
+            { title: "6. Plats & Jambes", text: "• No Hang 10 sec sur un Plat modéré.\n• Active pointes/talons.\n• No Hang 10 sec profondeur max.\n• 4/5 Tractions Pronation." },
+            { title: "7. Squats & Pompes", text: "• 15 Squats 'étirements'.\n• No Hang 10 sec profondeur max.\n• 4/10 Pompes.\n• 15 sec décompression épaules." },
+            { title: "8. Finalisation", text: "• Sauts sur un pied (chevilles).\n• 3 suspensions (Intensité 5/10 -> 8/10).\n• Repos 2-3 min entre chaque.\n\nGO BROYER ! 🧗" }
+        ];
+
+        const MUSCU_DATA = {
+            gym: [
+                {
+                    title: "📅 JOUR A : Haut du Corps",
+                    content: "<b>(Triceps + Pecs)</b><br><ul><li>Pompes (lestées) – 4×8</li><li>Dips (lestés) – 3×8</li><li>Extensions triceps élastique – 3×8</li><li>Développé couché – 3×8</li><li>Gainage frontal – 3×1min</li></ul>"
+                },
+                {
+                    title: "📅 JOUR B : Bas du Corps",
+                    content: "<b>(Bas + Gainage)</b><br><ul><li>Bulgarian split squat – 3×10 (chaque jambe)</li><li>Soulevé de terre jambes tendues – 3×8</li><li>Squats – 4×8</li><li>Crunch avec rotation – 3×20</li><li>Planche latérale – 3×45 sec par côté</li></ul>"
+                },
+                {
+                    title: "⚡ MINI-PROG RAPIDE (Post-Grimpe)",
+                    content: "10 min max. 2 ou 3 rounds. 90s entre exos.<br><ul><li>Tractions (lestées max 7 reps) – 7 reps</li><li>Squats sur une jambe (assistés si besoin) – 3-8 reps</li><li>Extension triceps élastique – 8 reps</li></ul>"
+                },
+                {
+                    title: "🔥 Liste Exos : PECTORAUX",
+                    content: "• Pompes lestées<br>• Dips sur barres parallèles<br>• Développé couché (barre ou haltères)<br>• Pompes inclinées (pieds surélevés)<br>• Développé couché inclinées"
+                },
+                {
+                    title: "💥 Liste Exos : TRICEPS",
+                    content: "• Dips (coude serrés, buste vertical)<br>• Extensions poulie haute (ou élastique)<br>• Pompes serrées (diamant)<br>• Barre au front (skullcrushers)<br>• Kickbacks haltères"
+                },
+                {
+                    title: "🦍 Liste Exos : DOS",
+                    content: "• Tractions lestées<br>• Rowing barre<br>• Tirage horizontal élastique/poulie<br>• Deadlift classique<br>• Superman au sol"
+                },
+                 {
+                    title: "🦵 Liste Exos : JAMBES",
+                    content: "• Bulgarian split squats<br>• Fentes marchées lourdes<br>• Squats lestés<br>• Soulevé de terre jambes tendues<br>• Hip thrusts"
+                }
+            ],
+            home: [
+                {
+                    title: "1️⃣ Échauffement (Squats)",
+                    content: "• 10 squats simples.<br>• Contrôlé : 4 sec descente, 4 sec montée.<br>• 1 min de repos avant la suite.",
+                    timer: 60
+                },
+                {
+                    title: "2️⃣ Montée de pied (Mur)",
+                    content: "• Face au mur, monte le pied max.<br>• Tire le genou vers le haut et maintiens 5 sec.<br>• 5 reps par jambe.<br>🔸 1min30 Repos | 3 Séries.",
+                    timer: 90,
+                    hold: 5
+                },
+                {
+                    title: "3️⃣ L'Horloge",
+                    content: "• Debout sur 1 jambe fléchie.<br>• Frôle le sol avec l'autre : Devant → Côté → Derrière → Côté.<br>• 5 tours par jambe.<br>🔸 1min30 Repos | 3 Séries.",
+                    timer: 90
+                },
+                {
+                    title: "4️⃣ Talons + Contre-pointes",
+                    content: "• Allongé dos : Tire talons contre lit/meuble (10s progressif + 5s blocage max).<br>• Allongé ventre : Pareil contre-pointes.<br>🔸 1min30 Repos entre chaque position | 3 Séries.",
+                    timer: 90,
+                    hold: 10
+                },
+                {
+                    title: "5️⃣ Pistol Squat",
+                    content: "• Squats sur une jambe.<br>• Aide-toi d'un support si besoin.<br>• 5 reps par jambe.<br>🔸 1min30 Repos | 4 Séries.",
+                    timer: 90
+                },
+                {
+                    title: "6️⃣ Fente Explosive",
+                    content: "• En fente, pousse fort pour sauter sur un pied.<br>• 7 reps par côté.<br>🔸 1min30 Repos | 3 Séries.",
+                    timer: 90
+                }
+            ]
+        };
+
+        // --- STATE ---
+        let timerInterval = null;
+        let isWork = true;
+        let timeLeft = 10;
+        let currentRep = 1;
+        let currentGripIndex = 0;
+        let isRunning = false;
+        let currentWarmupIndex = 0;
+        let currentUser = "";
+        let userAudio = null; // Store audio object to control it if needed
+
+        // --- SOUNDS ---
+        const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        function playBeep(freq = 440, type = 'sine') {
+            if (audioCtx.state === 'suspended') audioCtx.resume();
+            const osc = audioCtx.createOscillator();
+            const gain = audioCtx.createGain();
+            osc.type = type;
+            osc.frequency.value = freq;
+            osc.connect(gain);
+            gain.connect(audioCtx.destination);
+            osc.start();
+            gain.gain.exponentialRampToValueAtTime(0.00001, audioCtx.currentTime + 0.15);
+            osc.stop(audioCtx.currentTime + 0.15);
+        }
+
+        // --- AUTH & NAV ---
+        function showScreen(id) {
+            document.querySelectorAll('.full-screen').forEach(el => el.classList.add('hidden'));
+            document.getElementById(id).classList.remove('hidden');
+        }
+
+        function handleLogin() {
+            const user = document.getElementById('username-input').value.trim().toLowerCase();
+            const pass = document.getElementById('password-input').value.trim();
+            const errorMsg = document.getElementById('login-error');
+
+            if (USERS[user] && USERS[user] === pass) {
+                currentUser = user.charAt(0).toUpperCase() + user.slice(1);
+                if(currentUser === "Mateo") currentUser = "Matéo";
+                document.getElementById('user-welcome').innerText = `${currentUser.toUpperCase()} (AURA +∞)`;
+                
+                // --- LOGIQUE AUDIO ZIYAD ---
+                if(user === 'ziyad') {
+                    // Arrête l'audio s'il jouait déjà
+                    if(userAudio) { userAudio.pause(); userAudio.currentTime = 0; }
+                    
+                    userAudio = new Audio('A Good Man with a Broken Heart.mp3');
+                    userAudio.volume = 0.5; // Volume à 50%
+                    userAudio.play().catch(e => console.log("Erreur lecture audio :", e));
+                }
+                // ---------------------------
+
+                showScreen('dashboard');
+                localStorage.setItem('gargat_user', currentUser);
+            } else {
+                errorMsg.innerText = "IDENTIFIANT OU MOT DE PASSE INCORRECT";
+                playBeep(150, 'sawtooth');
+                setTimeout(() => errorMsg.innerText = "", 2000);
+            }
+        }
+
+        function logout() {
+            localStorage.removeItem('gargat_user');
+            document.getElementById('username-input').value = "";
+            document.getElementById('password-input').value = "";
+            // Arrêter la musique si on se déconnecte
+            if(userAudio) { userAudio.pause(); userAudio.currentTime = 0; }
+            showScreen('login-screen');
+        }
+
+        function goHome() {
+            clearInterval(timerInterval);
+            showScreen('dashboard');
+        }
+
+        // --- MUSCU RENDERER ---
+        function renderMuscu(type) {
+            const container = document.getElementById('muscu-container');
+            const title = document.getElementById('muscu-title');
+            container.innerHTML = "";
+            const data = MUSCU_DATA[type];
+            
+            title.innerText = type === 'gym' ? "SALLE / MATOS" : "MAISON (JAMBES)";
+
+            data.forEach((item, index) => {
+                const div = document.createElement('div');
+                div.className = 'accordion';
+                
+                let timerBtn = '';
+                if(item.timer) {
+                    timerBtn = `<button class="outline small-btn" onclick="startSimpleTimer(this, ${item.timer}); event.stopPropagation();">⏳ ${item.timer}s REPOS</button>`;
+                }
+                let holdBtn = '';
+                if(item.hold) {
+                    holdBtn = `<button class="muscu small-btn" onclick="startSimpleTimer(this, ${item.hold}); event.stopPropagation();" style="color:white; border:none;">✊ ${item.hold}s TENUE</button>`;
+                }
+
+                div.innerHTML = `
+                    <div class="accordion-header" onclick="toggleAccordion(this)">
+                        <span class="accordion-title">${item.title}</span>
+                        <span class="accordion-icon">▼</span>
+                    </div>
+                    <div class="accordion-content">
+                        <div class="accordion-inner">
+                            ${item.content}
+                            <div style="margin-top:10px;">${holdBtn} ${timerBtn}</div>
+                        </div>
+                    </div>
+                `;
+                container.appendChild(div);
+            });
+        }
+
+        function toggleAccordion(header) {
+            const content = header.nextElementSibling;
+            const icon = header.querySelector('.accordion-icon');
+            
+            if (content.classList.contains('open')) {
+                content.classList.remove('open');
+                icon.style.transform = 'rotate(0deg)';
+            } else {
+                content.classList.add('open');
+                icon.style.transform = 'rotate(180deg)';
+            }
+        }
+
+        // --- WARMUP LOGIC ---
+        function startWarmup() {
+            currentWarmupIndex = 0;
+            renderWarmup();
+            showScreen('warmup-screen');
+        }
+
+        function renderWarmup() {
+            const container = document.getElementById('warmup-container');
+            container.innerHTML = ""; // Clear
+            const step = WARMUP_STEPS[currentWarmupIndex];
+            
+            const div = document.createElement('div');
+            div.className = "step-card fade-in";
+            div.innerHTML = `
+                <div style="font-family:'Oswald'; color:var(--hold-blue); font-size:1.3rem; margin-bottom:10px;">${step.title}</div>
+                <div style="line-height:1.5; color:#ccc; white-space: pre-line;">${step.text}</div>
+                ${(currentWarmupIndex === 1 || currentWarmupIndex > 3) ? 
+                    '<button class="outline" onclick="startSimpleTimer(this, 10)" style="font-size:0.9rem; padding:10px; width:100%; margin-top:15px;">⏱️ TIMER 10s</button>' : ''}
+            `;
+            container.appendChild(div);
+
+            const prevBtn = document.getElementById('prev-warm-btn');
+            const nextBtn = document.getElementById('next-warm-btn');
+            prevBtn.disabled = currentWarmupIndex === 0;
+            prevBtn.style.opacity = currentWarmupIndex === 0 ? 0.3 : 1;
+            
+            const isLast = currentWarmupIndex === WARMUP_STEPS.length - 1;
+            nextBtn.innerText = isLast ? "TERMINER" : "SUIVANT";
+            nextBtn.className = isLast ? "primary" : "secondary";
+        }
+
+        function nextWarmup() {
+            if (currentWarmupIndex < WARMUP_STEPS.length - 1) {
+                currentWarmupIndex++;
+                renderWarmup();
+            } else {
+                goHome();
+            }
+        }
+        function prevWarmup() { if (currentWarmupIndex > 0) { currentWarmupIndex--; renderWarmup(); } }
+
+        // --- SHARED TIMER LOGIC ---
+        function startSimpleTimer(btn, seconds) {
+            if(btn.disabled) return;
+            let s = seconds;
+            const originalText = btn.innerText;
+            btn.disabled = true;
+            btn.style.borderColor = "white";
+            
+            const int = setInterval(() => {
+                btn.innerText = `⏱️ ${s}`;
+                if (s <= 3 && s > 0) playBeep(600);
+                if (s === 0) {
+                    playBeep(880);
+                    clearInterval(int);
+                    btn.innerText = "✅";
+                    btn.style.color = "var(--hold-green)";
+                    setTimeout(() => { 
+                        btn.disabled = false; 
+                        btn.innerText = originalText; 
+                        btn.style.color = "";
+                    }, 2000);
+                }
+                s--;
+            }, 1000);
+        }
+
+        // --- PROTOCOL TIMER LOGIC (UNCHANGED) ---
+        function startProtocol() { resetProtocolState(); updateUI(); showScreen('protocol-screen'); }
+        function resetProtocolState() { isWork = true; timeLeft = 10; currentRep = 1; currentGripIndex = 0; isRunning = false; document.getElementById('action-btn').innerText = "GO"; document.getElementById('action-btn').className = "primary"; }
+        function resetProtocol() { clearInterval(timerInterval); resetProtocolState(); updateUI(); document.getElementById('timer-status').innerText = "PRÊT ?"; document.getElementById('timer-state-wrapper').className = "state-rest"; }
+        function toggleTimer() {
+            if (isRunning) {
+                clearInterval(timerInterval); isRunning = false;
+                document.getElementById('action-btn').innerText = "CONTINUER"; document.getElementById('action-btn').className = "secondary";
+            } else {
+                isRunning = true;
+                document.getElementById('action-btn').innerText = "PAUSE"; document.getElementById('action-btn').className = "outline";
+                if (document.getElementById('timer-status').innerText === "PRÊT ?") startCountdown(); else runTimer();
+            }
+        }
+        function startCountdown() {
+            let prep = 5; document.getElementById('timer-status').innerText = "PRÉPA"; document.getElementById('timer-val').innerText = prep;
+            timerInterval = setInterval(() => {
+                prep--; if(prep > 0) { document.getElementById('timer-val').innerText = prep; playBeep(440); } 
+                else { clearInterval(timerInterval); isWork = true; timeLeft = 10; playBeep(880, 'square'); runTimer(); }
+            }, 1000);
+        }
+        function runTimer() {
+            updateUI();
+            timerInterval = setInterval(() => {
+                timeLeft--;
+                if (timeLeft <= 3 && timeLeft > 0) playBeep(isWork ? 440 : 660);
+                if (timeLeft < 0) switchPhase(); else document.getElementById('timer-val').innerText = timeLeft < 10 ? `0${timeLeft}` : timeLeft;
+            }, 1000);
+        }
+        function switchPhase() {
+            clearInterval(timerInterval);
+            if (isWork) { isWork = false; timeLeft = 20; playBeep(300, 'sawtooth'); runTimer(); } 
+            else {
+                isWork = true; timeLeft = 10; currentRep++;
+                if (currentRep > 6) { currentRep = 1; currentGripIndex++; if (currentGripIndex >= GRIPS.length) { finishProtocol(); return; } }
+                playBeep(880, 'square'); runTimer();
+            }
+            updateUI();
+        }
+        function finishProtocol() { isRunning = false; document.getElementById('timer-status').innerText = "TERMINÉ !"; document.getElementById('timer-val').innerText = "💪"; document.getElementById('action-btn').innerText = "RESTART"; document.getElementById('action-btn').className = "primary"; playBeep(600); setTimeout(() => playBeep(800), 200); }
+        function updateUI() {
+            const statusEl = document.getElementById('timer-status'); const timerEl = document.getElementById('timer-val'); const wrapper = document.getElementById('timer-state-wrapper');
+            document.getElementById('grip-name').innerText = GRIPS[currentGripIndex].name; document.getElementById('grip-icon').innerText = GRIPS[currentGripIndex].icon;
+            document.getElementById('rep-count').innerText = currentRep; document.getElementById('set-count').innerText = currentGripIndex + 1;
+            if (isWork) { statusEl.innerText = "SUSPENSION"; wrapper.className = "state-work"; } else { statusEl.innerText = "REPOS"; wrapper.className = "state-rest"; }
+            if(timeLeft >= 0) timerEl.innerText = timeLeft < 10 ? `0${timeLeft}` : timeLeft;
+        }
+    </script>
+</body>
+</html>
